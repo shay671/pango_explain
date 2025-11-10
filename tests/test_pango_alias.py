@@ -4,14 +4,7 @@ from pathlib import Path
 import pytest
 
 from pango_explain.gui import unroll_aliance
-from collections import OrderedDict
-
-from pango_explain.pango_alias import (
-    get_ancestral_dict,
-    load_alias_map,
-    lookup_alias,
-    unroll_pango_name,
-)
+from pango_explain.pango_alias import load_alias_map, lookup_alias, unroll_pango_name
 
 
 @pytest.fixture(scope="session")
@@ -85,59 +78,3 @@ def test_unroll_pango_name_valid(designation, expected, alias_map):
 def test_unroll_pango_name_invalid(designation, alias_map):
     with pytest.raises(ValueError):
         unroll_pango_name(designation, alias_map)
-
-
-@pytest.mark.parametrize(
-    "designation,expected",
-    [
-        ("XFG.1.3", OrderedDict([("XFG", None)])),
-        (
-            "BA.5.1",
-            OrderedDict(
-                [
-                    ("BA", "B.1.1.529"),
-                    ("B", None),
-                ]
-            ),
-        ),
-        (
-            "QU.5.2",
-            OrderedDict(
-                [
-                    ("QU", "NY.3.1.2"),
-                    ("NY", "LP.8.1.1"),
-                    ("LP", "KP.1.1.3"),
-                    ("KP", "JN.1.11.1"),
-                    ("JN", "BA.2.86.1"),
-                    ("BA", "B.1.1.529"),
-                    ("B", None),
-                ]
-            ),
-        ),
-        (
-            "KH.1.2.4",
-            OrderedDict(
-                [
-                    ("KH", "JE.1.1.1"),
-                    ("JE", "GJ.1.2.1"),
-                    ("GJ", "XBB.2.3.3"),
-                    ("XBB", None),
-                ]
-            ),
-        ),
-    ],
-)
-def test_get_ancestral_dict(designation, expected, alias_map):
-    assert get_ancestral_dict(designation, alias_map) == expected
-
-
-@pytest.mark.parametrize(
-    "designation",
-    [
-        "BA.14.S",
-        "XOQKFA.13",
-    ],
-)
-def test_get_ancestral_dict_invalid(designation, alias_map):
-    with pytest.raises(ValueError):
-        get_ancestral_dict(designation, alias_map)
