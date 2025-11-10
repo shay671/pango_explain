@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from pango_explain.gui import unroll_aliance
-from pango_explain.pango_alias import load_alias_map, lookup_alias
+from pango_explain.pango_alias import load_alias_map, lookup_alias, unroll_pango_name
 
 
 @pytest.fixture(scope="session")
@@ -49,3 +49,32 @@ def test_unroll_aliance_with_path(tmp_path):
     path.write_text(json.dumps({"alias": ["value1", "value2"]}), encoding="utf-8")
 
     assert unroll_aliance("alias", alias_map_path=path) == ["value1", "value2"]
+
+
+@pytest.mark.parametrize(
+    "designation,expected",
+    [
+        ("JN.1", "B.1.1.529.2.86.1.1"),
+        ("jn.1", "B.1.1.529.2.86.1.1"),
+        ("XBB.1.5", "XBB.1.5"),
+        ("XBC", "XBC"),
+        ("XFG", "XFG"),
+        ("A", "A"),
+    ],
+)
+def test_unroll_pango_name_valid(designation, expected, alias_map):
+    assert unroll_pango_name(designation, alias_map) == expected
+
+
+@pytest.mark.parametrize(
+    "designation",
+    [
+        "XZZ",
+        "B.1.1.4.2",
+        "FK.1.4.F",
+        "BA",
+    ],
+)
+def test_unroll_pango_name_invalid(designation, alias_map):
+    with pytest.raises(ValueError):
+        unroll_pango_name(designation, alias_map)
