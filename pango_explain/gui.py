@@ -15,9 +15,14 @@ from typing import Mapping, MutableMapping, Optional, Sequence, Union
 try:  # pragma: no cover - import fallback exercised only when run as a script
     from .pango_alias import (
         AliasValue,
+        default_report_path,
+        get_ancestral_dict,
+        generate_alias_ancestry_report,
+        generate_recombinant_report,
         load_alias_map,
         lookup_alias,
         unroll_pango_name,
+        write_alias_ancestry_workbook,
     )
 except ImportError:  # pragma: no cover - executed when ``__package__`` is empty
     # Allow ``python path/to/gui.py`` by temporarily adding the package root to
@@ -31,9 +36,14 @@ except ImportError:  # pragma: no cover - executed when ``__package__`` is empty
 
     from pango_explain.pango_alias import (
         AliasValue,
+        default_report_path,
+        get_ancestral_dict,
+        generate_alias_ancestry_report,
+        generate_recombinant_report,
         load_alias_map,
         lookup_alias,
         unroll_pango_name,
+        write_alias_ancestry_workbook,
     )
 
 
@@ -65,6 +75,18 @@ def _format_alias_value(value: AliasValue) -> str:
     if isinstance(value, Sequence):
         return "\n".join(value)
     return str(value)
+
+
+def _format_ancestry(ancestry: Mapping[str, Optional[str]]) -> str:
+    """Return a readable description for an ancestry mapping."""
+
+    lines = []
+    for alias, parent in ancestry.items():
+        if parent:
+            lines.append(f"{alias} = {parent}")
+        else:
+            lines.append(f"{alias}")
+    return "\n".join(lines)
 
 
 def unroll_aliance(
@@ -134,7 +156,8 @@ def run_gui(alias_map_path: Optional[Union[str, Path]] = None) -> None:
             layout.setSpacing(8)
 
             description = QLabel(
-                "Enter a Pango alias to unroll it into the full designation(s)."
+                "Enter a Pango alias to unroll it into the full designation(s) "
+                "or display its ancestry."
             )
             description.setWordWrap(True)
             layout.addWidget(description)
@@ -156,6 +179,14 @@ def run_gui(alias_map_path: Optional[Union[str, Path]] = None) -> None:
             check_button = QPushButton("Unroll Pango name")
             check_button.clicked.connect(self._on_check_pango_name)
             button_layout.addWidget(check_button)
+
+            ancestry_button = QPushButton("Show ancestry")
+            ancestry_button.clicked.connect(self._on_show_ancestry)
+            button_layout.addWidget(ancestry_button)
+
+            report_button = QPushButton("Save alias report")
+            report_button.clicked.connect(self._on_save_alias_report)
+            button_layout.addWidget(report_button)
 
             load_button = QPushButton("Load alias file…")
             load_button.clicked.connect(self._on_select_file)
@@ -205,6 +236,53 @@ def run_gui(alias_map_path: Optional[Union[str, Path]] = None) -> None:
                 self._result.setPlainText(str(exc))
             else:
                 self._result.setPlainText(resolved)
+
+        def _on_show_ancestry(self) -> None:
+            designation = self._alias_input.text().strip()
+            if not designation:
+                QMessageBox.information(
+                    self,
+                    "Designation required",
+                    "Please enter a Pango name to resolve its ancestry.",
+                )
+                return
+
+            try:
+                ancestry = get_ancestral_dict(designation, self._alias_map)
+            except (TypeError, ValueError) as exc:
+                self._result.setPlainText(str(exc))
+            else:
+                self._result.setPlainText(_format_ancestry(ancestry))
+
+        def _on_save_alias_report(self) -> None:
+            try:
+                rows = generate_alias_ancestry_report(self._alias_map)
+                recombinant_rows = generate_recombinant_report(self._alias_map)
+            except (TypeError, ValueError) as exc:
+                QMessageBox.critical(self, "Failed to build report", str(exc))
+                return
+
+            if not rows:
+                QMessageBox.information(
+                    self,
+                    "No aliases",
+                    "No non-root aliases were found to include in the report.",
+                )
+                return
+
+            path = default_report_path()
+
+            try:
+                write_alias_ancestry_workbook(rows, path, recombinant_rows)
+            except OSError as exc:  # pragma: no cover - filesystem failures are runtime issues
+                QMessageBox.critical(
+                    self,
+                    "Failed to save report",
+                    f"Could not write report to {path}: {exc}",
+                )
+                return
+
+            self._result.setPlainText(f"Saved alias ancestry report to {path}")
 
         def _on_select_file(self) -> None:
             dialog = QFileDialog(self, "Select alias mapping JSON")
