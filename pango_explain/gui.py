@@ -13,12 +13,7 @@ from pathlib import Path
 from typing import Mapping, MutableMapping, Optional, Sequence, Union
 
 try:  # pragma: no cover - import fallback exercised only when run as a script
-    from .pango_alias import (
-        AliasValue,
-        load_alias_map,
-        lookup_alias,
-        unroll_pango_name,
-    )
+    from .pango_alias import AliasValue, load_alias_map, lookup_alias
 except ImportError:  # pragma: no cover - executed when ``__package__`` is empty
     # Allow ``python path/to/gui.py`` by temporarily adding the package root to
     # ``sys.path`` before importing.  This branch mirrors the logic commonly
@@ -29,12 +24,7 @@ except ImportError:  # pragma: no cover - executed when ``__package__`` is empty
     if str(package_root) not in sys.path:
         sys.path.insert(0, str(package_root))
 
-    from pango_explain.pango_alias import (
-        AliasValue,
-        load_alias_map,
-        lookup_alias,
-        unroll_pango_name,
-    )
+    from pango_explain.pango_alias import AliasValue, load_alias_map, lookup_alias
 
 
 DEFAULT_ALIAS_MAP_PATH = Path(__file__).resolve().parent.parent / "alias_key.json"
@@ -153,10 +143,6 @@ def run_gui(alias_map_path: Optional[Union[str, Path]] = None) -> None:
             lookup_button.clicked.connect(self._on_lookup)
             button_layout.addWidget(lookup_button)
 
-            check_button = QPushButton("Check Pango name")
-            check_button.clicked.connect(self._on_check_pango_name)
-            button_layout.addWidget(check_button)
-
             load_button = QPushButton("Load alias file…")
             load_button.clicked.connect(self._on_select_file)
             button_layout.addWidget(load_button)
@@ -190,21 +176,6 @@ def run_gui(alias_map_path: Optional[Union[str, Path]] = None) -> None:
                 self._result.setPlainText(f"No mapping found for alias '{alias}'.")
             else:
                 self._result.setPlainText(_format_alias_value(value))
-
-        def _on_check_pango_name(self) -> None:
-            designation = self._alias_input.text().strip()
-            if not designation:
-                QMessageBox.information(
-                    self, "Designation required", "Please enter a Pango name to validate."
-                )
-                return
-
-            try:
-                resolved = unroll_pango_name(designation, self._alias_map)
-            except (TypeError, ValueError) as exc:
-                self._result.setPlainText(str(exc))
-            else:
-                self._result.setPlainText(resolved)
 
         def _on_select_file(self) -> None:
             dialog = QFileDialog(self, "Select alias mapping JSON")
